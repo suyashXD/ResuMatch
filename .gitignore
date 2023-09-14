@@ -2,3 +2,6 @@
 candidate_details/
 venv/
 /venv/
+/project_root/
+/preprocessed_data/
+similarity_scores.pkl
