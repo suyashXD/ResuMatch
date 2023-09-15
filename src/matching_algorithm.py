@@ -1,4 +1,5 @@
 import pickle
+import csv
 
 # Function to load similarity scores
 def load_similarity_scores():
@@ -14,14 +15,25 @@ def select_top_candidates(similarities, num_top_candidates=5):
         top_candidates[job_title] = sorted_candidates[:num_top_candidates]
     return top_candidates
 
+# Function to write the results to a CSV file
+def write_results_to_csv(top_candidates, output_file):
+    with open(output_file, "w", newline="") as csvfile:
+        fieldnames = ["Job Title", "Candidate", "Similarity Score"]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        
+        writer.writeheader()
+        for job_title, candidates in top_candidates.items():
+            for candidate, score in candidates:
+                writer.writerow({"Job Title": job_title, "Candidate": candidate, "Similarity Score": score})
+
 if __name__ == "__main__":
     similarities = load_similarity_scores()
     
     # Select the top 5 candidates for each job description
     top_candidates = select_top_candidates(similarities)
     
-    # Print or store the top candidates for further analysis or presentation
-    for job_title, candidates in top_candidates.items():
-        print(f"Job Title: {job_title}")
-        for candidate, score in candidates:
-            print(f"Candidate: {candidate}, Similarity Score: {score}")
+    # Write the results to a CSV file
+    output_file = "top_candidates.csv"
+    write_results_to_csv(top_candidates, output_file)
+    
+    print(f"Results written to {output_file}")

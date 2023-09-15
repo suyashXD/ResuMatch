@@ -2,6 +2,8 @@ import os
 import pandas as pd
 from transformers import DistilBertTokenizer
 import torch
+from concurrent.futures import ProcessPoolExecutor  # Import for parallel processing
+from functools import lru_cache  # Import for caching
 
 # Set the paths to your data directories
 candidate_details_dir = "candidate_details"
@@ -15,6 +17,7 @@ tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
 os.makedirs(output_dir, exist_ok=True)
 
 # Function to preprocess and tokenize text
+@lru_cache(maxsize=None)  # Cache tokenization results
 def preprocess_and_tokenize(text):
     # Tokenize the text
     tokens = tokenizer.tokenize(text)
@@ -33,8 +36,8 @@ def process_candidate_file(file_path):
 # Load job descriptions from CSV
 job_descriptions_df = pd.read_csv(job_descriptions_csv)
 
-# Loop through candidate details text files
-for file_name in os.listdir(candidate_details_dir):
+# Define a function for parallel processing
+def process_candidate_parallel(file_name):
     if file_name.endswith(".txt"):
         candidate_file_path = os.path.join(candidate_details_dir, file_name)
         # Process the candidate file
@@ -43,5 +46,10 @@ for file_name in os.listdir(candidate_details_dir):
         # Save the preprocessed data to the output directory
         output_file_path = os.path.join(output_dir, f"{file_name.replace('.txt', '.pt')}")
         torch.save(input_ids, output_file_path)
+
+# Initialize a ProcessPoolExecutor for parallel processing
+with ProcessPoolExecutor() as executor:
+    # Use parallel processing to process multiple candidate files concurrently
+    executor.map(process_candidate_parallel, os.listdir(candidate_details_dir))
 
 print("Text preprocessing and tokenization complete.")

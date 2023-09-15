@@ -1,6 +1,8 @@
+from fastapi import concurrency
 import pandas as pd
 import os
 from bs4 import BeautifulSoup
+from concurrent.futures import ThreadPoolExecutor
 
 # Function to format the resume content
 def format_resume_content(html_content):
@@ -36,6 +38,16 @@ def format_resume_content(html_content):
     
     return '\n'.join(formatted_resume)
 
+# Function to process a single row of the DataFrame
+def process_resume(row):
+    candidate_id = row['ID']
+    resume_html = row['Resume_html']
+
+    # Format the resume content from HTML
+    formatted_resume_text = format_resume_content(resume_html)
+
+    return candidate_id, formatted_resume_text
+
 # Get the absolute path of the script's directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -52,21 +64,16 @@ df = pd.read_csv(csv_file_path)
 output_dir = os.path.join(project_root, 'resumatch', 'candidate_details')
 os.makedirs(output_dir, exist_ok=True)
 
-# Loop through each row in the CSV file
-for index, row in df.iterrows():
-    candidate_id = row['ID']
-    resume_html = row['Resume_html']
+# Process resumes in parallel using ThreadPoolExecutor
+with ThreadPoolExecutor(max_workers=8) as executor:  # Adjust max_workers as needed
+    future_to_candidate = {executor.submit(process_resume, row): row for _, row in df.iterrows()}
     
-    # Create a separate file for each candidate
-    output_file_path = os.path.join(output_dir, f'candidate_{candidate_id}.txt')
-    
-    # Format the resume content from HTML
-    formatted_resume_text = format_resume_content(resume_html)
-    
-    # Write the formatted resume details to the file
-    with open(output_file_path, 'w', encoding='utf-8') as output_file:
-        output_file.write(formatted_resume_text)
-    
-    print(f"Details saved for Candidate ID: {candidate_id} in {output_file_path}")
-
-# You can process, parse, and extract specific details from formatted_resume_text for each candidate as needed
+    for future in concurrency.futures.as_completed(future_to_candidate):
+        candidate_id, formatted_resume_text = future.result()
+        output_file_path = os.path.join(output_dir, f'candidate_{candidate_id}.txt')
+        
+        # Write the formatted resume details to the file
+        with open(output_file_path, 'w', encoding='utf-8') as output_file:
+            output_file.write(formatted_resume_text)
+        
+        print(f"Details saved for Candidate ID: {candidate_id} in {output_file_path}")

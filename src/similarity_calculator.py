@@ -1,16 +1,30 @@
 import os
 import pickle
 import pandas as pd
-from sklearn.metrics.pairwise import cosine_similarity
 import torch
 from transformers import DistilBertTokenizer, DistilBertModel
-from concurrent.futures import ProcessPoolExecutor  # Import for parallel processing
+from concurrent.futures import ThreadPoolExecutor
+import joblib
+from joblib import Memory
+import multiprocessing
+import cProfile
 
-# Load DistilBERT tokenizer and model
+# Enable multi-threading for PyTorch CPU operations
+torch.set_num_threads(multiprocessing.cpu_count())
+
+# Initialize DistilBERT tokenizer and model
 tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
 model = DistilBertModel.from_pretrained("distilbert-base-uncased")
 
-# Function to preprocess and tokenize text
+# Create a cache directory for joblib
+cache_directory = "cache_dir"
+os.makedirs(cache_directory, exist_ok=True)
+
+# Initialize joblib memory for caching
+mem = joblib.Memory(location=cache_directory, verbose=0)
+
+# Function to preprocess and tokenize text with caching
+@mem.cache
 def preprocess_and_tokenize(text):
     # Tokenize the text
     tokens = tokenizer.encode(text, add_special_tokens=True, truncation=True)
@@ -18,14 +32,17 @@ def preprocess_and_tokenize(text):
 
 # Function to calculate cosine similarity between embeddings
 def calculate_similarity(embedding1, embedding2):
-    embedding1 = embedding1.reshape(1, -1)  # Reshape to a 2D array
-    embedding2 = embedding2.reshape(1, -1)  # Reshape to a 2D array
-    
-    return cosine_similarity(embedding1, embedding2)[0][0]
+    # Convert input NumPy arrays to PyTorch tensors
+    embedding1_tensor = torch.tensor(embedding1)
+    embedding2_tensor = torch.tensor(embedding2)
+
+    # Calculate cosine similarity using PyTorch function
+    similarity = torch.nn.functional.cosine_similarity(embedding1_tensor, embedding2_tensor).item()
+    return similarity
 
 # Load preprocessed candidate and job description data
 def load_processed_data():
-    candidate_files = os.listdir("preprocessed_data")  # Adjust this path
+    candidate_files = os.listdir("preprocessed_data")
     candidate_data = {}
 
     for file in candidate_files:
@@ -33,7 +50,7 @@ def load_processed_data():
             candidate_data[file] = f.read()
 
     try:
-        with open("data//hugging_face_job_descriptions//training_data.csv", "r", encoding='utf-8') as f:  # Adjust this path
+        with open("data\\hugging_face_job_descriptions\\training_data.csv", "r", encoding='utf-8') as f:
             job_descriptions = pd.read_csv(f)
     except UnicodeDecodeError:
         # Handle encoding errors here or skip problematic rows
@@ -46,7 +63,7 @@ def calculate_similarity_batch(description_embedding, candidate_embeddings_batch
     similarities = []
     for candidate_embedding in candidate_embeddings_batch:
         similarity = calculate_similarity(description_embedding, candidate_embedding)
-        similarities.append(similarity)
+        similarities.append(similarity)  # Append the float value to the list
     return similarities
 
 if __name__ == "__main__":
@@ -63,8 +80,8 @@ if __name__ == "__main__":
             embedding = model(torch.tensor([tokens]))[0][:, 0, :].numpy()
         candidate_embeddings[candidate_file] = embedding
 
-    # Initialize a ProcessPoolExecutor for parallel processing
-    with ProcessPoolExecutor() as executor:
+    # Initialize a ThreadPoolExecutor for parallel processing
+    with ThreadPoolExecutor() as executor:
         similarities = {}  # Dictionary to store similarity scores
 
         for index, row in job_descriptions.iterrows():
@@ -74,7 +91,7 @@ if __name__ == "__main__":
 
             # Split candidates into batches for parallel processing
             candidate_files = list(candidate_embeddings.keys())
-            batch_size = 200  # Adjust batch size as needed
+            batch_size = 10  # Adjust batch size as needed
             for i in range(0, len(candidate_files), batch_size):
                 candidate_batch = candidate_files[i:i + batch_size]
                 candidate_embeddings_batch = [candidate_embeddings[file] for file in candidate_batch]
@@ -90,3 +107,6 @@ if __name__ == "__main__":
     # Store similarity scores for later use
     with open("similarity_scores.pkl", "wb") as f:
         pickle.dump(similarities, f)
+
+    # Profile the code to identify bottlenecks
+    cProfile.run("load_processed_data()")
