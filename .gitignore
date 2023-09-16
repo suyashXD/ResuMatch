@@ -7,3 +7,4 @@ venv/
 similarity_scores.pkl
 /cache
 /cache_dir
+/data/kaggle_resume_dataset/JobFolder

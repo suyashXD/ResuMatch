@@ -1,7 +1,8 @@
-from fastapi import concurrency
+#from fastapi import concurrency
 import pandas as pd
 import os
 from bs4 import BeautifulSoup
+from concurrent import futures
 from concurrent.futures import ThreadPoolExecutor
 
 # Function to format the resume content
@@ -68,7 +69,7 @@ os.makedirs(output_dir, exist_ok=True)
 with ThreadPoolExecutor(max_workers=8) as executor:  # Adjust max_workers as needed
     future_to_candidate = {executor.submit(process_resume, row): row for _, row in df.iterrows()}
     
-    for future in concurrency.futures.as_completed(future_to_candidate):
+    for future in futures.as_completed(future_to_candidate):
         candidate_id, formatted_resume_text = future.result()
         output_file_path = os.path.join(output_dir, f'candidate_{candidate_id}.txt')
         
