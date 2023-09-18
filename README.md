@@ -101,7 +101,7 @@ The algorithm effectively selected the top candidates with the highest similarit
 
 The results of the matching process, including the top candidates for each job description, were meticulously stored in output files. This structured output facilitated further analysis and decision-making.
 
-## Challenges Faced and Solutions:
+## Challenges and Solutions:
 
 ### 1. Data Extraction and Validation:
 
