@@ -1,11 +1,17 @@
 import pickle
 import csv
+import unicodedata  # Import the unicodedata module
 
 # Function to load similarity scores
 def load_similarity_scores():
     with open("similarity_scores.pkl", "rb") as f:
         similarities = pickle.load(f)
     return similarities
+
+# Function to sanitize text for CSV output
+def sanitize_text(text):
+    # Remove or replace non-encodable characters
+    return "".join(char for char in text if unicodedata.category(char)[0] != 'C')
 
 # Function to select top candidates for each job description
 def select_top_candidates(similarities, num_top_candidates=5):
@@ -17,14 +23,16 @@ def select_top_candidates(similarities, num_top_candidates=5):
 
 # Function to write the results to a CSV file
 def write_results_to_csv(top_candidates, output_file):
-    with open(output_file, "w", newline="") as csvfile:
+    with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
         fieldnames = ["Job Title", "Candidate", "Similarity Score"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         
         writer.writeheader()
         for job_title, candidates in top_candidates.items():
             for candidate, score in candidates:
-                writer.writerow({"Job Title": job_title, "Candidate": candidate, "Similarity Score": score})
+                sanitized_job_title = sanitize_text(job_title)
+                sanitized_candidate = sanitize_text(candidate)
+                writer.writerow({"Job Title": sanitized_job_title, "Candidate": sanitized_candidate, "Similarity Score": score})
 
 if __name__ == "__main__":
     similarities = load_similarity_scores()
