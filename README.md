@@ -11,7 +11,7 @@
 
 ## Overview
 
-ResuMatch is a Resume Matching System that aims to match job descriptions with candidates' resumes. It extracts key details from both job descriptions and resumes, processes them, and calculates a similarity score to rank the most suitable candidates for each job. This project was developed as part of [describe the context or purpose of the project].
+ResuMatch is a Resume Matching System that aims to match job descriptions with candidates' resumes. It extracts key details from both job descriptions and resumes, processes them, and calculates a similarity score to rank the most suitable candidates for each job.
 
 ## Project Structure
 
